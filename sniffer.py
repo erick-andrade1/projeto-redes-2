@@ -56,7 +56,7 @@ def main():
                 print(format_multi_line(DATA_TAB_3, data))
 
             elif proto == 17:
-                src_port, dest_port, size, data = icmp_packet(data)
+                src_port, dest_port, size, data = udp_packet(data)
                 print(TAB_1 + 'Pacote UDP:')
                 print(TAB_2 + 'Porta de origem: {}, Porta de destino: {}, Tamanho: {}'.format(src_port, dest_port, size))
             
