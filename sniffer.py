@@ -23,13 +23,14 @@ def main():
         raw_data, addr = conn.recvfrom(65536)
         # Passamos a informação para ser desempacotada
         dest_mac, src_mac, eth_proto, data = ethernet_frame(raw_data)
+        print('\n-----------------------------------------------------------------------------------')
         print('\nEthernet Frame:')
         # Apenas um print formatado com as informações recebidas do tráfego
         print(TAB_1 + 'Destino: {}, Origem: {}, Protocolo: {}'.format(dest_mac, src_mac, eth_proto))
         
         #Antes de printar o conteúdo, devemos checar o protocolo ethernet (8 para IPv4)
         if eth_proto == 8:
-            (version, header_length, ttl, proto, src, target, data) = ipv4_packet(data)
+            (version, header_length, ttl, proto, src, target, data) = unpack_ipv4(data)
             print(TAB_1 + 'Pacote IPv4:')
             print(TAB_2 + 'Versão: {}, Tamanho do cabeçalho: {}, TTL: {}'.format(version, header_length, ttl))
             print(TAB_2 + 'Protocolo: {}, Origem: {}, Target: {}'.format(proto, src, target))
@@ -39,34 +40,40 @@ def main():
             # 6 - para TCP
             # 17 - para UDP
             if proto == 1:
-                icmp_type, code, checksum, data = icmp_packet(data)
+                icmp_type, code, checksum, data = unpack_icmp(data)
                 print(TAB_1 + 'Pacote ICMP:')
                 print(TAB_2 + 'Tipo: {}, Código: {}, Checksum: {}'.format(icmp_type, code, checksum))
                 print(TAB_2 + 'Data:')
                 print(format_multi_line(DATA_TAB_3, data))
+                print('\n-----------------------------------------------------------------------------------')
             
             elif proto == 6:
-                src_port, dest_port, sequence, acknowledgement, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, data = tcp_packet(data)
+                src_port, dest_port, sequence, acknowledgement, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, data = unpack_tcp(data)
                 print(TAB_1 + 'Pacote TCP:')
                 print(TAB_2 + 'Porta de origem: {}, Porta de destino: {}'.format(src_port, dest_port))
                 print(TAB_2 + 'Sequência: {}, Reconhecimento: {}'.format(sequence, acknowledgement))
                 print(TAB_2 + 'Flags:')
-                print(TAB_3 + 'URG: {}, ACK: {}, PSH: {}, RST: {}, SYN: {}, FIN: {}'.format(flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin))
+                print(TAB_3 + 'URG: {}, ACK: {}, PSH: {}'.format(flag_urg, flag_ack, flag_psh))
+                print(TAB_3 + 'RST: {}, SYN: {}, FIN: {}'.format(flag_rst, flag_syn, flag_fin))
                 print(TAB_2 + 'Data:')
                 print(format_multi_line(DATA_TAB_3, data))
+                print('\n-----------------------------------------------------------------------------------')
 
             elif proto == 17:
-                src_port, dest_port, size, data = udp_packet(data)
+                src_port, dest_port, size, data = unpack_udp(data)
                 print(TAB_1 + 'Pacote UDP:')
                 print(TAB_2 + 'Porta de origem: {}, Porta de destino: {}, Tamanho: {}'.format(src_port, dest_port, size))
+                print('\n-----------------------------------------------------------------------------------')
             
             else: 
                 print(TAB_1 + 'Data:')
                 print(format_multi_line(DATA_TAB_2, data))
+                print('\n-----------------------------------------------------------------------------------')
 
         else:
             print('Data:')
             print(format_multi_line(DATA_TAB_1, data))
+            print('\n-----------------------------------------------------------------------------------')
 
 # Desempacota o dado passado
 def ethernet_frame(data):
@@ -88,7 +95,7 @@ def get_mac_addr(bytes_addr):
 
 
 # Desempacotando cabeçalhos de pacotes IPv4
-def ipv4_packet(data):
+def unpack_ipv4(data):
     # Primeiro iremos desempacotar a versão e o tamanho do header
     version_header_length = data[0]
     # pegando apenas o número da versão:
@@ -109,12 +116,12 @@ def ipv4(addr):
 # Abaixo ficam as funções que desempacotam os pacotes de acordo com seu tipo (UDP, TCP, ICMP)
 
 # Desempacota ICMP:
-def icmp_packet(data):
+def unpack_icmp(data):
     icmp_type, code, checksum = struct.unpack('! B B H', data[:4])
     return icmp_type, code, checksum, data[4:]
 
 # Desempacota TCP:
-def tcp_packet(data):
+def unpack_tcp(data):
     # Aqui serão também puxadas todas as 'flags' que o protocolor TCP tem
     (src_port, dest_port, sequence, acknowledgement, offset_reserved_flags) = struct.unpack('! H H L L H', data[:14])
     offset = (offset_reserved_flags >> 12) * 4
@@ -128,7 +135,7 @@ def tcp_packet(data):
 
 
 # Desempacota UDP:
-def udp_packet(data):
+def unpack_udp(data):
     src_port, dest_port, size = struct.unpack('! H H 2x H', data[:8])
     return src_port, dest_port, size, data[8:]
 
